@@ -527,6 +527,8 @@ if music_enable:
 volume.update(screen, -90, 0, 0)
 pygame.display.update()
 pygame.mixer.music.set_volume(64)
+
+
 while True:
     # -------------   Main program loop.   ----------------
     br_data = [0, 0]
@@ -535,16 +537,19 @@ while True:
             print "Exiting...."
             ser.close()  # close serial port.
             sys.exit()   # end program.
+            
         if event.type == pygame.KEYDOWN:  # if key pressed...
-            print "key pressed  "
+            inchar = event.key
+            # print "key pressed  "
             # determine if a number key was pressed...
-            if(event.key > pygame.K_0 and event.key <= pygame.K_9):
-                ctrl = event.key - pygame.K_0
+            if(inchar > pygame.K_0 and inchar <= pygame.K_9):
+                ctrl = inchar - pygame.K_0
             else:
                 ctrl = 0
+            print "key pressed  ", ctrl
             br_data = [ctrl, 0]
             # if letter key pressed, mode change...
-            if (event.key == pygame.K_x or event.key == pygame.K_m):
+            if (inchar == pygame.K_x or inchar == pygame.K_m):
                 if(music_enable == 1):
                     music_enable = 0
                     pygame.mixer.music.stop()
@@ -553,7 +558,7 @@ while True:
                     music_enable = 1
                     pygame.mixer.music.play()
                     print "Music on."
-            if (event.key == pygame.K_b):
+            if (inchar == pygame.K_b):
                 if(beep_enable == 1):
                     beep_enable = 0
                     print "Beeps off."
@@ -577,7 +582,7 @@ while True:
             br_data[1] = curPos[0] / 1 - posprev
             br_data[1] = br_data[1] * 2
             posprev = curPos[0] / 1
-            print curPos
+            print curPos, br_data
         pygame.time.delay(50)
         mousebuttprev = mousebutt[0]
     else:
@@ -587,7 +592,8 @@ while True:
 #   pygame.mixer.music.set_volume(float(volvalue)/255)
 
     if(br_data):  # if we have data....
-        if(br_data[0] == 20 or br_data[1] == 21): # if volume change commands: 21=down, 20=up.
+        if(br_data[1] != 0):
+		# if(br_data[0] == 20 or br_data[1] == 21): # if volume change commands: 21=down, 20=up.
             # volvalue += br_data[1]/2 # for brooch
             # volvalue += br_data[1]/1 # for brooch
             # volvalue += br_data[1]*2 # for hart
@@ -595,6 +601,8 @@ while True:
             # Volume change commands:  21 is down, 20 is up...
             volincrement = ((20 - br_data[0]) + 0.5) * 2  # direction sign
             volincrement *= br_data[1]  # aplpy increment
+            if test:
+                volincrement /= 8
             # volvalue += br_data[1]*2.5 # for TOF sensor
             volvalue += volincrement  # for TOF sensor
             if(volvalue > 255):
@@ -619,7 +627,11 @@ while True:
                 new_state = 'vol_max'
                 tclick = millisec()
                 if beep_enable:
-                    beep2.play(1)
+                    bpvol = beep1.get_volume()
+                    beep1.set_volume(1.0)
+                    beep1.play(1)
+                    time.sleep(0.250)
+                    beep1.set_volume(bpvol)
             if volvalue < 5.5:
                 new_state = 'vol_min'
                 tclick = millisec()
@@ -627,7 +639,7 @@ while True:
                     beep2.play(1)
         vol_state = new_state
 
-        # music playing stuff...
+        # music playing commands...
 
         ctrl = br_data[0]
         if(ctrl == 1):  # play/pause
@@ -666,27 +678,36 @@ while True:
             if beep_enable:
                 beep1.play(2)
 
-        # if (ctrl == 7 ): # beep while in volume change state
-        if (ctrl == 200):  # beep while in volume change state
+        if (ctrl == 6):
+            if beep_enable:
+                beep1.set_volume(1.0)
+                beep1.play(1) # beep beep
+            volbeepenable = 0
+
+        if (ctrl == 7 ): # beep while in volume change state
+        #if (ctrl == 200):  # beep while in volume change state
             tclick = millisec()
             if beep_enable:
                 beep1.play()
                 time.sleep(0.250)
-                beep1.set_volume(0.5)
+                beep1.set_volume(0.3)
                 volbeepenable = 1
-        if (ctrl == 6):
+                
+        if (ctrl == 8):
             if beep_enable:
-                beep1.set_volume(1.0)
-                beep1.play(1)
+                beep2.set_volume(1.0)
+                beep2.play(1) # boop boop
             volbeepenable = 0
-
+                
+                
         # Update dial image...
         if (ctrl != 0 or br_data[1] != 0):
             angle = (volvalue * 280) / 255 - 140
             volume.update(screen, angle, ctrl, pause)
-
             pygame.display.update()
 
+
+    # if song ended, play next or wrap to first...
     if(not pygame.mixer.music.get_busy()):
         if music_enable:
             idx += 1
@@ -696,6 +717,7 @@ while True:
             pygame.mixer.music.play()
 
 
+    # beep continuously if enabled...
     if (millisec() - tclick > 750) and volbeepenable:
         #print 'time: ', t0
         beep1.play()
